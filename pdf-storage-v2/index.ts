@@ -6,6 +6,7 @@ import winston from 'winston';
 import cors from 'cors';
 import { templatesRouter } from './templates';
 import { dataRouter } from './data';
+import { generatorRouter } from './generator';
 
 const serviceName = 'express-service';
 
@@ -38,6 +39,7 @@ app.use(cors());
 app.use('/api/v1', router);
 app.use('/api/v1/template', templatesRouter);
 app.use('/api/v1/data', dataRouter);
+app.use('/api/v1/generate', generatorRouter);
 
 app.listen(port, () => {
   logger.info(`⚡️ starting server on port ${port}`);

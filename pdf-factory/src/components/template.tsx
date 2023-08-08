@@ -4,6 +4,7 @@ import Spin from "./spinner";
 import { PdfViewerComponent, PdfViewerRef } from "./pdf-viewer";
 import { Button, Col, Container, Form, Row, Stack, Table } from "react-bootstrap";
 import axios from "axios";
+import { PdfKitViewerComponent } from "./pdf-kit-biewer";
 
 interface Set {
     id: string, name: string, itemsCount: number 
@@ -27,6 +28,8 @@ export default function TemplateView() {
     const [columns, setColumns] = useState<Array<any> | null>();
     const [rows, setRows] = useState<Array<any> | null>();
     const [fieldAssignments, setFieldAssignments] = useState<Array<{field: Field, column: string}>>([]);
+    const [generatedFiles, setGeneratedFiles] = useState<Array<{file: Buffer, row: string, blobName: string}>>([]);
+    const [idColumn, setIdColumn] = useState<string>();
 
     useEffect(() => {
         fetchTemplate();
@@ -57,6 +60,7 @@ export default function TemplateView() {
                 setDataLoading(false);
                 setColumns(response.set.columns);
                 setRows(response.items);
+                setIdColumn(response.set.idColumn);
             })
     }
 
@@ -82,9 +86,31 @@ export default function TemplateView() {
                 return response.blob()
             })
             .then(data => {
-                console.log(data);
-                setFile(data);
+                setFile(data.slice(0, data.size, "application/pdf"));
                 setIsLoading(false);
+            })
+    }
+
+    const fetchGeneratedFile = (blobName: string) => {
+
+        const downloadFile = (data: {blob: Blob, row: string}) => {
+            const url = window.URL.createObjectURL(data.blob);
+            const a = document.createElement("a");
+            document.body.appendChild(a);
+            a.setAttribute("style", "display: none");
+            a.href = url;
+            a.download = `${data.row}.pdf`;
+            a.target = '_self';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        return fetch(`http://localhost:3030/api/v1/generate/${blobName}`)
+            .then(response => {
+                return response.blob()
+            })
+            .then(data => {
+                downloadFile({blob: data, row: blobName})
             })
     }
 
@@ -145,6 +171,23 @@ export default function TemplateView() {
             ref.current?.fillData(inputs);
         }
 
+        const getDownloadFileButton = (row: any) => {
+
+
+            if (generatedFiles === null || generatedFiles.length === 0) return (<p></p>);
+
+            const id = row[idColumn!];
+            const file = generatedFiles.find(file => file.row === id);
+
+            if (file === null) return (<p></p>);
+
+            console.log(generatedFiles);
+
+            return (
+                <Button variant="secondary" onClick={() => fetchGeneratedFile(file!.blobName)}>Download</Button>
+            )
+        }
+
         return (
             <Table striped bordered hover variant="dark">
                 <thead>
@@ -157,7 +200,10 @@ export default function TemplateView() {
                         <tr>
                             {columns?.map((column) => (<td>{row[column]}</td>))}
                             <td>
-                                <Button variant="secondary" onClick={() => assignRow(row)}>Assign</Button>{' '}
+                                <Stack direction="horizontal">
+                                    <Button className="m-1" variant="secondary" onClick={() => assignRow(row)}>Assign</Button>
+                                    {getDownloadFileButton(row)}
+                                </Stack>
                             </td>
                         </tr>
                     ))}
@@ -190,7 +236,7 @@ export default function TemplateView() {
         )
     }
 
-    const generateFiles = async (templateId: string, set: Set, fieldAssignments: Array<{field: Field, column: string}>) => {
+    const generateFiles = async (set: Set, fieldAssignments: Array<{field: Field, column: string}>) => {
         const data = {
             templateId: templateId,
             set: set.id,
@@ -199,11 +245,18 @@ export default function TemplateView() {
                 column: assignment.column
             })),
         }
-        axios.post('http://localhost:3030/api/v1/generate', data);
+        fetch('http://localhost:3030/api/v1/generate', {method: 'POST', body: JSON.stringify(data), headers: {'Content-Type': 'application/json'}})
+            .then(response => {
+                return response.json()
+            })
+            .then(data => {
+                setGeneratedFiles(data)
+            });
     }
 
     const generate = async () => {
-        await generateFiles(template!.id, set!, fieldAssignments);
+        console.log(templateId);
+        await generateFiles(set!, fieldAssignments);
     }
 
     if (isLoading) return (<Spin></Spin>);
@@ -221,7 +274,8 @@ export default function TemplateView() {
         <Container fluid className='main-container'>
             <Row>
                 <Col lg={8}>
-                    {file !== null ? ( <PdfViewerComponent document={file!} ref={ref}></PdfViewerComponent>) : null}
+                    {/* {file !== null ? ( <PdfViewerComponent document={file!} ref={ref}></PdfViewerComponent>) : null} */}
+                    {file !== null ? ( <PdfKitViewerComponent document={file!} ref={ref}></PdfKitViewerComponent>) : null}
                 </Col>
                 <Col>
                     <Container>

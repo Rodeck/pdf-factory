@@ -19,7 +19,7 @@ export interface IDataSetModel {
 
 export interface IDataSetWithData {
     set: IDataSetModel,
-    items: IDataModel[],
+    items: any[],
 }
 
 export interface IDataInput {

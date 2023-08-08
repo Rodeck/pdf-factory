@@ -18,3 +18,8 @@ export interface IField {
     id: {id: string, EN: string}
     page: number;
 }
+
+export interface IFieldMapping {
+    fieldId: string;
+    column: string;
+}

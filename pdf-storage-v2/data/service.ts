@@ -36,7 +36,50 @@ const fetchSets = async (userId: string) => {
     return result.resources.map((element) => mapDataSet(element));   
 }
 
-const fetchSet = async (userId: string, setName: string) : Promise<IDataSetWithData> => {
+const fetchSetDataByName = async (userId: string, setName: string) : Promise<IDataSetWithData> => {
+    const set = await fetchSetByName(userId, setName);
+
+    return await fetchSetData(userId, set)
+
+}
+
+const fetchSetDataById = async (userId: string, setId: string) : Promise<IDataSetWithData> => {
+    const set = await fetchSetById(userId, setId);
+
+    return await fetchSetData(userId, set)
+
+}
+
+const fetchSetData = async (userId: string, set: IDataSet) : Promise<IDataSetWithData> => {
+    
+    const container = getContainer();
+    const dataSet = mapDataSet(set);
+
+    const dataQuery = {
+        query: `select * from ${containerName} p where p.PK=@PK and p.DataSetName=@dataSetName`,
+        parameters: [
+            {
+                name: "@PK",
+                value: dataPk(userId)
+            },
+            {
+                name: "@dataSetName",
+                value: set.Name
+            }
+        ]
+    };
+
+    const dataResult = await container.items.query<IData>(dataQuery).fetchAll();
+    const data = dataResult.resources.map((element) => mapRawData(element));
+
+    return {
+        set: dataSet,
+        items: data,
+    }
+}
+
+
+const fetchSetByName = async (userId: string, setName: string) : Promise<IDataSet> => {
     const container = getContainer();
 
     const querySpec = {
@@ -55,29 +98,33 @@ const fetchSet = async (userId: string, setName: string) : Promise<IDataSetWithD
 
 
     const result = await container.items.query<IDataSet>(querySpec).fetchAll();
-    const dataSet = mapDataSet(result.resources[0]);
 
-    const dataQuery = {
-        query: `select * from ${containerName} p where p.PK=@PK and p.DataSetName=@dataSetName`,
+    return result.resources[0];
+
+}
+
+const fetchSetById = async (userId: string, setId: string) : Promise<IDataSet> => {
+    const container = getContainer();
+
+    const querySpec = {
+        query: `select * from ${containerName} p where p.PK=@PK and p.id=@id`,
         parameters: [
             {
                 name: "@PK",
-                value: dataPk(userId)
+                value: dataSetPk(userId)
             },
             {
-                name: "@dataSetName",
-                value: setName
+                name: "@id",
+                value: setId
             }
         ]
     };
 
-    const dataResult = await container.items.query<IData>(dataQuery).fetchAll();
-    const data = dataResult.resources.map((element) => mapRawData(element));
 
-    return {
-        set: dataSet,
-        items: data,
-    }
+    const result = await container.items.query<IDataSet>(querySpec).fetchAll();
+
+    return result.resources[0];
+
 }
 
 const dataPk = (userId: string) => `${userId}#data`;
@@ -116,4 +163,4 @@ const convertToObject = (element: Array<string>, columns: Array<string>) => {
 }
 
 
-export { putData, fetchSet, fetchSets };
+export { putData, fetchSetDataByName, fetchSetDataById, fetchSets };

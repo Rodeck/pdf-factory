@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { putData, fetchSet, fetchSets } from './service';
+import { putData, fetchSetDataByName, fetchSets } from './service';
 import { getUser } from '../commons/auth';
 import { IDataInput } from './models';
 import * as bodyParser from 'body-parser';
@@ -13,7 +13,7 @@ router.get('/', async (req: Request, res: Response) => {
   });
   
 router.get('/:setName', async (req: Request<{setName: string}>, res: Response) => {
-    const result = await fetchSet(getUser(req), req.params.setName);
+    const result = await fetchSetDataByName(getUser(req), req.params.setName);
     res.send(result);
 });
 

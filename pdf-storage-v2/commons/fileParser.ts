@@ -1,4 +1,6 @@
 import PDFParser from "pdf2json";
+import { PDFDocument } from 'pdf-lib'
+import { IField, IFieldMapping } from "../templates/models";
 
 const parseFile = async (file: Buffer, callback: (data: IPdfStructure) => void) => {
 
@@ -43,6 +45,38 @@ const convert = (pdfData: any) : IPdfStructure => {
     }
 }
 
+const fillData = async (templateFile: Buffer, fields: IFieldMapping[], data: Array<any>) : Promise<Array<{file: Buffer, row: any}>>=> {
+    const result = new Array<{file: Buffer, row: any}>;
+    
+    for (const row of data) {
+        const pdfDoc = await PDFDocument.load(templateFile);
+        const form = pdfDoc.getForm();
+
+        fields.forEach((field) => {
+            const formField = form.getTextField(field.fieldId);
+            formField.setText(row[field.column]);
+        });
+
+        let doc = await pdfDoc.save();
+        result.push({
+            file: toBuffer(doc),
+            row: row,
+        });
+    }
+
+    return result;
+}
+
+const toBuffer = (arrayBuffer: Uint8Array) => {
+    const buffer = Buffer.alloc(arrayBuffer.byteLength);
+    const view = new Uint8Array(arrayBuffer);
+    for (let i = 0; i < buffer.length; ++i) {
+      buffer[i] = view[i];
+    }
+    return buffer;
+}
+
+
 export interface IPdfStructure {
     pages: Array<IPage>,
     meta: IMeta,
@@ -73,4 +107,4 @@ export interface IMeta {
     ModDate: string,
 }
 
-export { parseFile }
+export { parseFile, fillData }
